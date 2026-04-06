@@ -1,10 +1,16 @@
 import zoneinfo
 from fastapi import FastAPI
 from datetime import datetime
+from pydantic import BaseModel
 
+class Customer(BaseModel):
+    name: str
+    description: str | None
+    email: str
+    age: int
 
 app = FastAPI()
-
+ 
 @app.get("/")
 async def root():
     return {"message": "Hello life"}
@@ -61,3 +67,7 @@ async def hour(format: str):
         "formato": format,
         "hora_formateada": hora_formateada
     }
+
+@app.post ("/customers")
+async def create_customer(customer_data: Customer):
+    return customer_data
