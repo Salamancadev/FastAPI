@@ -1,11 +1,11 @@
 import zoneinfo
 from fastapi import FastAPI
 from datetime import datetime
-from models import Customer, Transaction, Invoice
+from models import Customer, CustomerCreate, Transaction, Invoice
+from db import SessionDep, create_all_tables
+from sqlmodel import select
 
-
-
-app = FastAPI()
+app = FastAPI(lifespan=create_all_tables)
  
 @app.get("/")
 async def root():
@@ -64,11 +64,31 @@ async def hour(format: str):
         "hora_formateada": hora_formateada
     }
 
-@app.post ("/customers")
-async def create_customer(customer_data: Customer):
-    return customer_data
+db_customers: list[Customer] = []
+
+@app.post ("/customers", response_model=Customer)
+async def create_customer(customer_data: CustomerCreate, session: SessionDep):
+    customer = Customer.model_validate(customer_data.model_dump())
+    session.add(customer)
+    session.commit()
+    session.refresh(customer)
+    #Asumimos que el id se genera automáticamente y es incremental
+    #customer.id = len(db_customers)
+    #db_customers.append(customer)
+    return customer
 
 
+@app.get ("/customers", response_model=list[Customer])
+async def list_customers(session: SessionDep):
+    return session.exec(select(Customer)).all()
+
+@app.get ("/customers/{customer_id}", response_model=Customer)
+async def get_customer(customer_id: int, session: SessionDep):
+    customer = session.get(Customer, customer_id)
+    if not customer_id:
+        return {"error": "Customer not found"}
+    return customer
+    
 @app.post ("/transactions")
 async def create_transaction(transaction_data: Transaction):
     return transaction_data
